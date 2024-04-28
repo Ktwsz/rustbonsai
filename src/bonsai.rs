@@ -15,15 +15,23 @@ const PHI_NEIGH_TOLERANCE: f64 = 100f64;
 pub struct BonsaiTree {
     nodes: Vec <utils::Triangle>,
     bounds: (u32, u32),
-    frames: u32,
+    animation_time: f64,
+    current_frame: f64
+}
+
+pub enum AsciiChange {
+    Start,
+    Change((usize, usize), char),
+    Stop,
 }
 
 impl BonsaiTree {
-    pub fn new(bounds: (u32, u32), frames: u32) -> Self {
+    pub fn new(bounds: (u32, u32), animation_time: f64) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
             bounds,
-            frames,
+            animation_time,
+            current_frame: 0.0,
         }
     }
 
@@ -81,7 +89,24 @@ impl BonsaiTree {
         }
     }
 
-    pub fn fill_buffer(&self, buffer: &mut Vec<Vec<char>>) {
+    pub fn animation_step(&mut self, dt: f64) -> Vec<AsciiChange> {
+        if self.current_frame >= self.animation_time {
+            return vec![AsciiChange::Stop];
+        }
+
+        self.current_frame += dt;
+        let mut result: Vec<AsciiChange> = Vec::new();
+
+        for t in &self.nodes {
+            for p in t.bezier_interpolate_all(DT, T) {
+                result.push(AsciiChange::Change((f64::floor(p.x) as usize, f64::floor(p.y) as usize), '*'));
+            }
+        }
+
+        result
+    }
+
+    fn fill_buffer(&self, buffer: &mut Vec<Vec<char>>) {
         for t in &self.nodes {
             for p in t.bezier_interpolate_all(DT, T) {
                 buffer[f64::floor(p.x) as usize][f64::floor(p.y) as usize] = '*';
