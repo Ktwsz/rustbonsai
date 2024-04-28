@@ -13,6 +13,8 @@
 //! [examples]: https://github.com/ratatui-org/ratatui/blob/main/examples
 //! [examples readme]: https://github.com/ratatui-org/ratatui/blob/main/examples/README.md
 
+/*
+
 #![allow(clippy::wildcard_imports)]
 
 use std::{
@@ -210,4 +212,12 @@ fn restore_terminal() -> io::Result<()> {
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
     Ok(())
+}
+*/
+
+
+use bonsai;
+
+fn main() {
+    bonsai::testing();
 }
