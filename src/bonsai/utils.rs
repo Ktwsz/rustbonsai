@@ -69,14 +69,15 @@ impl Triangle {
         }
     }
 
-    pub fn normalize(&mut self, min_p: &Point, max_p: &Point, factor: u32) {
+    pub fn normalize(&mut self, min_p: &Point, max_p: &Point, bounds: (u32, u32)) {
         let normal_x = max_p.x - min_p.x;
         let normal_y = max_p.y - min_p.y;
         let normal_p = Point::from_floats(normal_x, normal_y);
 
-        self.points[0] = (self.points[0] - *min_p) / normal_p * factor as f64;
-        self.points[1] = (self.points[1] - *min_p) / normal_p * factor as f64;
-        self.points[2] = (self.points[2] - *min_p) / normal_p * factor as f64;
+        for i in 0..3 {
+            self.points[i] = (self.points[i] - *min_p) / normal_p;
+            self.points[i] = Point::from_floats(self.points[i].x * bounds.0 as f64, self.points[i].y * bounds.1 as f64);
+        }
     }
 
     pub fn intersects(&self, t: &Triangle) -> bool {

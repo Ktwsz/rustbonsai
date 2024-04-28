@@ -1,4 +1,5 @@
-mod utils;
+pub mod utils;
+
 use std::f64::consts::PI;
 use rand_distr::{Normal, Uniform, Distribution};
 use std::collections::VecDeque;
@@ -13,14 +14,16 @@ const PHI_NEIGH_TOLERANCE: f64 = 100f64;
 
 pub struct BonsaiTree {
     nodes: Vec <utils::Triangle>,
-    factor: u32,
+    bounds: (u32, u32),
+    frames: u32,
 }
 
 impl BonsaiTree {
-    pub fn new() -> Self {
+    pub fn new(bounds: (u32, u32), frames: u32) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
-            factor: 100,
+            bounds,
+            frames,
         }
     }
 
@@ -36,7 +39,7 @@ impl BonsaiTree {
 
         let min_p = utils::Point::from_floats(min_x, min_y);
         let max_p = utils::Point::from_floats(max_x, max_y);
-        self.nodes.iter_mut().for_each(|v| v.normalize(&min_p, &max_p, self.factor));
+        self.nodes.iter_mut().for_each(|v| v.normalize(&min_p, &max_p, self.bounds));
     }
 
     pub fn generate(&mut self) {
