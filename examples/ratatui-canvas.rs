@@ -124,31 +124,11 @@ impl App {
     }
 
     fn ui(&self, frame: &mut Frame) {
-        let horizontal =
-            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]);
-        let vertical = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]);
-        let [map, right] = horizontal.areas(frame.size());
-        let [pong, boxes] = vertical.areas(right);
-
-        frame.render_widget(self.map_canvas(), map);
+        let pong = Rect::new(0, 0, frame.size().width, frame.size().height);
         frame.render_widget(self.pong_canvas(), pong);
-        frame.render_widget(self.boxes_canvas(boxes), boxes);
+
     }
 
-    fn map_canvas(&self) -> impl Widget + '_ {
-        Canvas::default()
-            .block(Block::default().borders(Borders::ALL).title("World"))
-            .marker(self.marker)
-            .paint(|ctx| {
-                ctx.draw(&Map {
-                    color: Color::Green,
-                    resolution: MapResolution::High,
-                });
-                ctx.print(self.x, -self.y, "You are here".yellow());
-            })
-            .x_bounds([-180.0, 180.0])
-            .y_bounds([-90.0, 90.0])
-    }
 
     fn pong_canvas(&self) -> impl Widget + '_ {
         Canvas::default()
@@ -159,44 +139,6 @@ impl App {
             })
             .x_bounds([10.0, 210.0])
             .y_bounds([10.0, 110.0])
-    }
-
-    fn boxes_canvas(&self, area: Rect) -> impl Widget {
-        let left = 0.0;
-        let right = f64::from(area.width);
-        let bottom = 0.0;
-        let top = f64::from(area.height).mul_add(2.0, -4.0);
-        Canvas::default()
-            .block(Block::default().borders(Borders::ALL).title("Rects"))
-            .marker(self.marker)
-            .x_bounds([left, right])
-            .y_bounds([bottom, top])
-            .paint(|ctx| {
-                for i in 0..=11 {
-                    ctx.draw(&Rectangle {
-                        x: f64::from(i * i + 3 * i) / 2.0 + 2.0,
-                        y: 2.0,
-                        width: f64::from(i),
-                        height: f64::from(i),
-                        color: Color::Red,
-                    });
-                    ctx.draw(&Rectangle {
-                        x: f64::from(i * i + 3 * i) / 2.0 + 2.0,
-                        y: 21.0,
-                        width: f64::from(i),
-                        height: f64::from(i),
-                        color: Color::Blue,
-                    });
-                }
-                for i in 0..100 {
-                    if i % 10 != 0 {
-                        ctx.print(f64::from(i) + 1.0, 0.0, format!("{i}", i = i % 10));
-                    }
-                    if i % 2 == 0 && i % 10 != 0 {
-                        ctx.print(0.0, f64::from(i), format!("{i}", i = i % 10));
-                    }
-                }
-            })
     }
 }
 
