@@ -10,7 +10,6 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Marker, Widget};
 use ratatui::widgets::{Block, Borders};
 use ratatui::widgets::canvas::{Canvas, Points};
-use crate::bonsai::utils::Point;
 
 const TERMINAL_BOUNDS: (u32, u32) = (100, 50);
 
@@ -18,27 +17,17 @@ const TERMINAL_BOUNDS: (u32, u32) = (100, 50);
 
 
 struct App<'a> {
-    x: f64,
-    y: f64,
     point: Points<'a>,
-    playground: Rect,
-    vx: f64,
-    vy: f64,
     marker: Marker,
 }
 
 impl<'a> App<'a> {
     fn new() -> Self {
         Self {
-            x: 0.0,
-            y: 0.0,
             point: Points {
                 coords: &[],
                 color: Color::LightCyan,
             },
-            playground: Rect::new(10, 10, 200, 100),
-            vx: 1.0,
-            vy: 1.0,
             marker: Marker::Dot,
         }
     }
@@ -83,7 +72,7 @@ fn main() ->io::Result<()> {
 
     // tree.fill_buffer(&mut buffer);
     // print_buffer(&buffer);
-    Ok(for _ in 0..100 {
+    for _ in 0..100 {
         let ascii_changes = tree.animation_step();
 
         for change in ascii_changes {
@@ -96,8 +85,10 @@ fn main() ->io::Result<()> {
         let _ = terminal.draw(|frame| app.ui(frame));
 
         thread::sleep(time::Duration::from_millis(100));
-        restore_terminal()?
-    })
+    }
+
+    restore_terminal()?;
+    Ok(())
 }
 
 fn print_buffer(buffer: &Vec<Vec<char>>) {
