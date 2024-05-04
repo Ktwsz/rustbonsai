@@ -9,14 +9,17 @@ const DT: f64 = 0.001;
 const T: u32 = 1000;
 const MAX_DIST: f64 = 2.5;
 const MIN_DIST: f64 = 0.3;
-const PHI_TOLERANCE: f64 = 5f64;
-const PHI_NEIGH_TOLERANCE: f64 = 100f64;
+const MAX_DEPTH: u8 = 2;
+const PHI_TOLERANCE: f64 = 10.0;
+const PHI_NEIGH_TOLERANCE: f64 = 30.0;
+const ANIMATION_STEP: f64 = 0.1;
 
 pub struct BonsaiTree {
     nodes: Vec <utils::Triangle>,
     bounds: (u32, u32),
-    animation_time: f64,
-    current_frame: f64
+
+    neighbours: Vec <Vec <usize>>,
+    animation_queue: Vec <(usize, f64)>,
 }
 
 pub enum AsciiChange {
@@ -26,17 +29,24 @@ pub enum AsciiChange {
 }
 
 impl BonsaiTree {
-    pub fn new(bounds: (u32, u32), animation_time: f64) -> Self {
+    pub fn new(bounds: (u32, u32)) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
             bounds,
-            animation_time,
-            current_frame: 0.0,
+
+            neighbours: vec![Vec::new()],
+            animation_queue: vec![(0, 0.0)],
         }
     }
 
-    fn push(&mut self, s: &utils::Point, t: &utils::Point, phi_offset: f64) {
+    fn push(&mut self, s: &utils::Point, t: &utils::Point, phi_offset: f64, parent: usize) {
         self.nodes.push(utils::Triangle::from_points(&s, &t, phi_offset));
+
+        if self.nodes.len() > 1 {
+            self.neighbours.push(Vec::new());
+            let new_neigh = self.neighbours.len() - 1;
+            self.neighbours[parent].push(new_neigh);
+        }
     }
 
     pub fn normalize(&mut self) {
@@ -54,25 +64,23 @@ impl BonsaiTree {
         let starting_point = utils::Point::from_floats(1.0, 1.0);
 
         let (next_point, next_point_radius, next_point_bphi) = sample_point(&starting_point, 1.0, None, &self.nodes).unwrap();
-        println!("first {:?}", next_point);
 
-        self.push(&starting_point, &next_point, next_point_bphi);
+        self.push(&starting_point, &next_point, next_point_bphi, 0);
 
-        let mut que: VecDeque<(utils::Point, f64, u8)> = VecDeque::new();
-        que.push_back((next_point, next_point_radius, 0));
+        let mut que: VecDeque<(utils::Point, f64, u8, usize)> = VecDeque::new();
+        que.push_back((next_point, next_point_radius, 0, 0));
 
         while !que.is_empty() {
-            println!("generating...");
-            let (point, dist, ctr) = que.pop_front().unwrap();
+            let (point, dist, depth, parent) = que.pop_front().unwrap();
 
             let sample = sample_point(&point, dist, None, &self.nodes);
 
             let neigh: Option<utils::Point> = 
                 if let Some((found_point1, next_point_radius, next_point_bphi)) = sample {
-                    self.push(&point, &found_point1, next_point_bphi);
+                    self.push(&point, &found_point1, next_point_bphi, parent);
 
-                    if MAX_DIST > MIN_DIST + dist + next_point_radius && ctr < 1 {
-                        que.push_back((found_point1, dist + next_point_radius, ctr + 1));
+                    if MAX_DIST > MIN_DIST + dist + next_point_radius && depth < MAX_DEPTH {
+                        que.push_back((found_point1, dist + next_point_radius, depth + 1, self.neighbours.len() - 1));
                     }
 
                     Some(found_point1)
@@ -80,33 +88,42 @@ impl BonsaiTree {
 
             let sample2 = sample_point(&point, dist, neigh, &self.nodes);
             if let Some((found_point2, next_point_radius2, next_point_bphi2)) = sample2 {
-                self.push(&point, &found_point2, next_point_bphi2);
+                self.push(&point, &found_point2, next_point_bphi2, parent);
 
-                if MAX_DIST > MIN_DIST + dist + next_point_radius2 && ctr < 1 {
-                    que.push_back((found_point2, dist + next_point_radius2, ctr + 1));
+                if MAX_DIST > MIN_DIST + dist + next_point_radius2 && depth < MAX_DEPTH {
+                    que.push_back((found_point2, dist + next_point_radius2, depth + 1, self.neighbours.len() - 1));
                 }
             }
         }
     }
 
-    pub fn animation_step(&mut self, dt: f64) -> Vec<AsciiChange> {
-        if self.current_frame >= self.animation_time {
+    pub fn animation_step(&mut self) -> Vec<AsciiChange> {
+        if self.animation_queue.is_empty() {
             return vec![AsciiChange::Stop];
         }
-
-        self.current_frame += dt;
         let mut result: Vec<AsciiChange> = Vec::new();
 
-        for t in &self.nodes {
-            for p in t.bezier_interpolate_all(DT, T) {
-                result.push(AsciiChange::Change((f64::floor(p.x) as usize, f64::floor(p.y) as usize), '*'));
+        let mut next_frame_queue: Vec <(usize, f64)> = Vec::new();
+        for (ix, dt) in &self.animation_queue {
+            let end_dt = dt + ANIMATION_STEP;
+
+            for p in self.nodes[*ix].bezier_interpolate_interval((*dt, end_dt), DT) {
+                result.push(AsciiChange::Change((f64::floor(p.x) as usize, f64::floor(p.y) as usize), '&'))
+            }
+
+            if 1.0 - end_dt < 0.1 {
+                self.neighbours[*ix].iter().for_each(|v| next_frame_queue.push((*v, 0.0)));
+            } else {
+                next_frame_queue.push((*ix, end_dt));
             }
         }
+
+        self.animation_queue = next_frame_queue;
 
         result
     }
 
-    fn fill_buffer(&self, buffer: &mut Vec<Vec<char>>) {
+    pub fn fill_buffer(&self, buffer: &mut Vec<Vec<char>>) {
         for t in &self.nodes {
             for p in t.bezier_interpolate_all(DT, T) {
                 buffer[f64::floor(p.x) as usize][f64::floor(p.y) as usize] = '*';
@@ -196,15 +213,11 @@ fn curve_check(t: &utils::Triangle, nodes: &Vec<utils::Triangle>, min_y: f64) ->
         .peek()
         .is_some();
 
-    if out_of_bounds {
-        return false;
-    }
-
     let intersects = nodes.iter()
         .filter(|v| t.intersects(v))
         .peekable()
         .peek()
         .is_some();
 
-    !intersects
+    !intersects && !out_of_bounds
 }

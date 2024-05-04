@@ -57,6 +57,12 @@ impl Triangle {
         (0..t).map(|v| self.bezier_interpolate(dt * v as f64)).collect()
     }
 
+    pub fn bezier_interpolate_interval(&self, interval: (f64, f64), dt: f64) -> Vec <Point> {
+        let t = ((interval.1 - interval.0) * 1000.0) as i32;
+        (0..t).map(|v| self.bezier_interpolate(interval.0 + dt * v as f64)).collect()
+
+    }
+
 
     pub fn from_points(s: &Point, t: &Point, phi_offset: f64) -> Self {
         let v = *t - *s;
@@ -70,8 +76,8 @@ impl Triangle {
     }
 
     pub fn normalize(&mut self, min_p: &Point, max_p: &Point, bounds: (u32, u32)) {
-        let normal_x = max_p.x - min_p.x;
-        let normal_y = max_p.y - min_p.y;
+        let normal_x = max_p.x - min_p.x + 1.0;
+        let normal_y = max_p.y - min_p.y + 1.0;
         let normal_p = Point::from_floats(normal_x, normal_y);
 
         for i in 0..3 {
