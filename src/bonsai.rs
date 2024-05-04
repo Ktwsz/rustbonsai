@@ -4,14 +4,15 @@ use std::f64::consts::PI;
 use rand_distr::{Normal, Uniform, Distribution};
 use std::collections::VecDeque;
 use rand;
+use rand::Rng;
 
 const DT: f64 = 0.001;
 const T: u32 = 1000;
 const MAX_DIST: f64 = 2.5;
 const MIN_DIST: f64 = 0.3;
-const MAX_DEPTH: u8 = 2;
+const MAX_DEPTH: u8 = 1;
 const PHI_TOLERANCE: f64 = 10.0;
-const PHI_NEIGH_TOLERANCE: f64 = 30.0;
+const PHI_NEIGH_TOLERANCE: f64 = 100.0;
 const ANIMATION_STEP: f64 = 0.1;
 
 pub struct BonsaiTree {
@@ -63,7 +64,7 @@ impl BonsaiTree {
     pub fn generate(&mut self) {
         let starting_point = utils::Point::from_floats(1.0, 1.0);
 
-        let (next_point, next_point_radius, next_point_bphi) = sample_point(&starting_point, 1.0, None, &self.nodes).unwrap();
+        let (next_point, next_point_radius, next_point_bphi) = sample_point(&starting_point, 1.0, None, &self.nodes, true).unwrap();
 
         self.push(&starting_point, &next_point, next_point_bphi, 0);
 
@@ -73,7 +74,7 @@ impl BonsaiTree {
         while !que.is_empty() {
             let (point, dist, depth, parent) = que.pop_front().unwrap();
 
-            let sample = sample_point(&point, dist, None, &self.nodes);
+            let sample = sample_point(&point, dist, None, &self.nodes, false);
 
             let neigh: Option<utils::Point> = 
                 if let Some((found_point1, next_point_radius, next_point_bphi)) = sample {
@@ -86,7 +87,7 @@ impl BonsaiTree {
                     Some(found_point1)
                 } else { None };
 
-            let sample2 = sample_point(&point, dist, neigh, &self.nodes);
+            let sample2 = sample_point(&point, dist, neigh, &self.nodes, false);
             if let Some((found_point2, next_point_radius2, next_point_bphi2)) = sample2 {
                 self.push(&point, &found_point2, next_point_bphi2, parent);
 
@@ -139,7 +140,7 @@ fn fill_phi_values(phis: &mut Vec<f64>) {
     }
 }
 
-fn sample_point(parent: &utils::Point, dist_left: f64, neigh: Option<utils::Point>, nodes: &Vec<utils::Triangle>) -> Option<(utils::Point, f64, f64)> {
+fn sample_point(parent: &utils::Point, dist_left: f64, neigh: Option<utils::Point>, nodes: &Vec<utils::Triangle>, is_starter_point: bool) -> Option<(utils::Point, f64, f64)> {
     let normal = Normal::new(0.8 * (MAX_DIST - dist_left - MIN_DIST), 0.1 * MAX_DIST).unwrap();
     let uniform = Uniform::new(0, (2f64 * PI * 100000.0) as i32);
 
@@ -156,48 +157,34 @@ fn sample_point(parent: &utils::Point, dist_left: f64, neigh: Option<utils::Poin
     let mut found = false;
     let mut iterations = 0;
     while !found {
-        bezier_ix = 0;
+        bezier_ix = rng.gen_range(0..bezier_phis.len());
         phi = uniform.sample(&mut rng) as f64 / 100000.0;
-
-        while !tolerance_check(parent, phi, neigh) || !bounds_check(parent, phi, radius) {
-            phi = uniform.sample(&mut rng) as f64 / 100000.0;
-        }
-
-        if iterations >= 100 {
-            return None;
-        }
-
-        let min_y = 0.5;// if is_starter_point { 0.5 } else { 0.5 };
-
         let mut t = utils::Triangle::from_points(&parent, &parent.add_polar(phi, radius), bezier_phis[bezier_ix]);
-        while iterations < 100 && !curve_check(&t, nodes, min_y) { 
-            bezier_ix += 1;
-            iterations += 1;
 
-            if bezier_ix >= bezier_phis.len() {
-                break;
-            }
+        let min_y = if is_starter_point { 0.5 } else { 1.5 };
+
+        while iterations < 10000 && !tolerance_check(parent, phi, neigh) || !bounds_check(parent, phi, radius) && !curve_check(&t, nodes, min_y) {
+            phi = uniform.sample(&mut rng) as f64 / 100000.0;
+            bezier_ix = rng.gen_range(0..bezier_phis.len());
 
             t = utils::Triangle::from_points(&parent, &parent.add_polar(phi, radius), bezier_phis[bezier_ix]);
+
+            iterations += 1;
         }
 
-        if bezier_ix >= bezier_phis.len() || iterations >= 100 {
+        if iterations >= 10000 {
             return None;
         }
 
         found = true;
-        
     }    
 
     Some((parent.add_polar(phi, radius), radius, bezier_phis[bezier_ix]))
 }
 
 fn tolerance_check(parent: &utils::Point, phi: f64, neigh: Option<utils::Point>) -> bool {
-    phi > utils::deg_to_rad(PHI_TOLERANCE) &&
 
-    phi + utils::deg_to_rad(PHI_TOLERANCE) < 2.0 * PI &&
-
-    f64::abs(parent.phi() - phi) > utils::deg_to_rad(PHI_TOLERANCE) &&
+    f64::abs(parent.phi() - phi) > utils::deg_to_rad(PHI_NEIGH_TOLERANCE) &&
 
     neigh.map_or(true, |n| f64::abs(n.phi() - phi) > utils::deg_to_rad(PHI_NEIGH_TOLERANCE))
 }
