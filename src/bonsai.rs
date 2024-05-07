@@ -1,7 +1,8 @@
 pub mod utils;
 
 use rand;
-use rand::Rng;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use self::utils::Point;
 
@@ -16,7 +17,7 @@ pub struct BonsaiTree {
     nodes: Vec <Point>,
     bounds: (u32, u32),
 
-    rng: rand::rngs::ThreadRng,
+    rng: StdRng,
 
     neighbours: Vec <Vec <usize>>,
     animation_queue: Vec <(isize, usize, f64)>,
@@ -34,7 +35,7 @@ impl BonsaiTree {
             nodes: Vec::new(),
             bounds,
 
-            rng: rand::thread_rng(),
+            rng: StdRng::seed_from_u64(2137),
 
             neighbours: Vec::new(),
             animation_queue: vec![(-1, 0, 0.0)],
@@ -150,7 +151,7 @@ impl BonsaiTree {
     }
 }
 
-fn get_new_direction(dir: i32, rng: &mut rand::rngs::ThreadRng) -> i32 {
+fn get_new_direction(dir: i32, rng: &mut StdRng) -> i32 {
     let r = rng.gen::<i32>() & 2;
 
     if dir == 0 {
