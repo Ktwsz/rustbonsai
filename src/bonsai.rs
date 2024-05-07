@@ -24,12 +24,12 @@ pub struct BonsaiTree {
 }
 
 impl BonsaiTree {
-    pub fn new(bounds: (u32, u32)) -> Self {
+    pub fn new(bounds: (u32, u32), seed: u64) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
             bounds,
 
-            rng: StdRng::seed_from_u64(2137),
+            rng: StdRng::seed_from_u64(seed),
 
             neighbours: Vec::new(),
             animation_queue: vec![(-1, 0, 0.0)],

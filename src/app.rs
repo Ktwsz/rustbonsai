@@ -50,12 +50,12 @@ impl<'a> App<'a> {
     }
 
 
-    pub fn run() -> io::Result<()> {
+    pub fn run(seed: u64, live: bool) -> io::Result<()> {
 
         let mut terminal = init_terminal()?;
         let mut app = App::new(terminal.size().unwrap());
         let bounds = ((terminal.size().unwrap().width - terminal.size().unwrap().y) as u32,(terminal.size().unwrap().height - terminal.size().unwrap().x)as u32);
-        let mut tree = BonsaiTree::new(bounds);
+        let mut tree = BonsaiTree::new(bounds,seed);
         tree.generate();
         tree.normalize();
         let mut last_tick = Instant::now();
@@ -73,10 +73,15 @@ impl<'a> App<'a> {
                 }
             }
             if last_tick.elapsed() >= tick_rate {
+                if !live{
+                    for _ in 0..100{
+                        app.on_tick(&mut tree);
+                    }}
                 app.on_tick(&mut tree);
                 last_tick = Instant::now();
             }
         }
+
 
         restore_terminal()
 
