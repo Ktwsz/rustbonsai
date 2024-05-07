@@ -12,25 +12,25 @@ use ratatui::widgets::{Block, Borders};
 use ratatui::widgets::canvas::{Canvas, Points};
 use crate::bonsai::BonsaiTree;
 
-pub const TERMINAL_BOUNDS: (u32, u32) = (100, 50);
-
 const TICK_RATE: u64 = 100;
 
 pub struct App<'a> {
     point: Points<'a>,
     tick_count: u64,
     marker: Marker,
+    bounds: (f64,f64)
 }
 
 impl<'a> App<'a> {
-    fn new() -> Self {
+    fn new(terminal_rect: Rect) -> Self {
         Self {
             point: Points {
                 coords: &[],
-                color: Color::LightCyan,
+                color: Color::Rgb(205,133,63)
             },
             tick_count: 0,
             marker: Marker::Dot,
+            bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64)
         }
     }
 
@@ -45,14 +45,19 @@ impl<'a> App<'a> {
             .paint(|ctx| {
                 ctx.draw(&self.point);
             })
-            .x_bounds([10.0, 210.0])
-            .y_bounds([10.0, 110.0])
+            .x_bounds([0.0, self.bounds.0])
+            .y_bounds([0.0, self.bounds.1])
     }
 
 
-    pub fn run(mut tree: BonsaiTree) -> io::Result<()> {
-        let mut app = App::new();
+    pub fn run() -> io::Result<()> {
+
         let mut terminal = init_terminal()?;
+        let mut app = App::new(terminal.size().unwrap());
+        let bounds = ((terminal.size().unwrap().width - terminal.size().unwrap().y) as u32,(terminal.size().unwrap().height - terminal.size().unwrap().x)as u32);
+        let mut tree = BonsaiTree::new(bounds);
+        tree.generate();
+        tree.normalize();
         let mut last_tick = Instant::now();
         let tick_rate = Duration::from_millis(TICK_RATE);
 
