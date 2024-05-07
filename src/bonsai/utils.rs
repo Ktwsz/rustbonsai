@@ -24,7 +24,13 @@ impl Point {
         self.x = normalized.x * bounds.0 as f64;
         self.y = normalized.y * bounds.1 as f64;
     }
+
 }
+
+pub fn linear_interpolate(start: &Point, end: &Point, dt: f64) -> Point {
+    *start + (*end - *start) * dt
+}
+
 
 impl Add for Point {
     type Output = Self;
