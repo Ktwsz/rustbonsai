@@ -1,4 +1,4 @@
-use std::{io, thread, time};
+use std::io;
 use std::io::{Stdout, stdout};
 use std::time::{Duration, Instant};
 use crossterm::{event, ExecutableCommand};
@@ -10,9 +10,11 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Marker, Widget};
 use ratatui::widgets::{Block, Borders};
 use ratatui::widgets::canvas::{Canvas, Points};
-use crate::bonsai::{AsciiChange, BonsaiTree};
+use crate::bonsai::BonsaiTree;
 
 pub const TERMINAL_BOUNDS: (u32, u32) = (100, 50);
+
+const TICK_RATE: u64 = 100;
 
 pub struct App<'a> {
     point: Points<'a>,
@@ -32,17 +34,6 @@ impl<'a> App<'a> {
         }
     }
 
-    fn new_point(&mut self, buffer: &Vec<Vec<char>>) {
-        let mut vec: Vec<(f64, f64)> = Vec::new();
-        for y in 0..buffer[0].len() {
-            for x in 0..buffer.len() {
-                if buffer[x][y] == '&' {
-                    vec.push((x as f64, y as f64));
-                }
-            }
-        }
-        self.point.coords = Box::leak(vec.into_boxed_slice());
-    }
     fn ui(&self, frame: &mut Frame) {
         let tree = Rect::new(0, 0, frame.size().width, frame.size().height);
         frame.render_widget(self.tree_canvas(), tree);
@@ -60,12 +51,11 @@ impl<'a> App<'a> {
 
 
     pub fn run(mut tree: BonsaiTree) -> io::Result<()> {
-        let bounds: (usize, usize) = (TERMINAL_BOUNDS.0 as usize + 1, TERMINAL_BOUNDS.1 as usize + 1);
         let mut app = App::new();
         let mut terminal = init_terminal()?;
         let mut last_tick = Instant::now();
-        let tick_rate = Duration::from_millis(100);
-        let mut buffer = vec![vec![' '; bounds.1]; bounds.0];
+        let tick_rate = Duration::from_millis(TICK_RATE);
+
         loop {
             let _ = terminal.draw(|frame| app.ui(frame));
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
@@ -78,7 +68,7 @@ impl<'a> App<'a> {
                 }
             }
             if last_tick.elapsed() >= tick_rate {
-                app.on_tick(&mut buffer,&mut tree);
+                app.on_tick(&mut tree);
                 last_tick = Instant::now();
             }
         }
@@ -86,17 +76,16 @@ impl<'a> App<'a> {
         restore_terminal()
 
     }
-    fn on_tick(&mut self, buffer :&mut Vec<Vec<char>>, tree :&mut BonsaiTree) {
+    fn on_tick(&mut self, tree: &mut BonsaiTree) {
         self.tick_count += 1;
-        let ascii_changes = tree.animation_step();
+        let changes: Vec<(f64, f64)> = tree.animation_step()
+            .iter()
+            .map(|p| (p.x, p.y))
+            .collect();
 
-        for change in ascii_changes {
-            match change {
-                AsciiChange::Change((x, y), c) => buffer[x][y] = c,
-                _ => ()
-            }
-        }
-        self.new_point(&buffer);
+        let sliced_changes: &[(f64, f64)] = Box::leak(changes.into_boxed_slice());
+
+        self.point.coords = Box::leak([self.point.coords, sliced_changes].concat().into_boxed_slice());
     }
 }
 fn init_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {

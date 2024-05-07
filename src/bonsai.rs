@@ -23,12 +23,6 @@ pub struct BonsaiTree {
     animation_queue: Vec <(isize, usize, f64)>,
 }
 
-pub enum AsciiChange {
-    Start,
-    Change((usize, usize), char),
-    Stop,
-}
-
 impl BonsaiTree {
     pub fn new(bounds: (u32, u32)) -> Self {
         BonsaiTree {
@@ -108,12 +102,12 @@ impl BonsaiTree {
         }
     }
 
-    pub fn animation_step(&mut self) -> Vec<AsciiChange> {
+    pub fn animation_step(&mut self) -> Vec<Point> {
         if self.animation_queue.is_empty() {
-            return vec![AsciiChange::Stop];
+            return Vec::default();
         }
 
-        let mut result: Vec<AsciiChange> = Vec::new();
+        let mut result: Vec<Point> = Vec::new();
 
         let mut next_frame_queue: Vec <(isize, usize, f64)> = Vec::new();
 
@@ -128,7 +122,7 @@ impl BonsaiTree {
 
                 let p = utils::linear_interpolate(&self.nodes[*parent as usize], &self.nodes[*ix], t);
 
-                result.push(AsciiChange::Change((f64::floor(p.x) as usize, f64::floor(p.y) as usize), '&'));
+                result.push(p);
             }
 
             let next_dt = dt + ANIMATION_STEP as f64 * 0.002;
