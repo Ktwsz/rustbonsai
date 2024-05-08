@@ -12,9 +12,12 @@ const Y_GROWTH: i32 = 8;
 const MAX_X_GROWTH: i32 = 3;
 const BRANCHES_TIERS: i32 = 4;
 const BRANCH_COOLDOWN: i32 = 2;
+const LEAF_HEIGHT: i32 = 3;
+const LEAF_RADIUS: i32 = 6;
 
 pub struct BonsaiTree {
     nodes: Vec <Point>,
+    leaves: Vec <Point>,
     bounds: (u32, u32),
 
     rng: StdRng,
@@ -27,6 +30,7 @@ impl BonsaiTree {
     pub fn new(bounds: (u32, u32)) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
+            leaves: Vec::new(),
             bounds,
 
             rng: StdRng::seed_from_u64(2137),
@@ -68,6 +72,7 @@ impl BonsaiTree {
 
     fn generate_tree(&mut self, pos: Point, growth: i32, tier: i32, xdir: i32, mut parent: usize) {
         if tier == 0 {
+            self.generate_leaves(&pos, LEAF_HEIGHT, LEAF_RADIUS);
             return;
         }
 
@@ -102,9 +107,23 @@ impl BonsaiTree {
         }
     }
 
+    fn generate_leaves(&mut self, pos: &Point, height: i32, radius: i32) {
+        if height <= 0 {
+            return;
+        }
+
+        for x in -radius..=radius {
+            if x != 0 && self.rng.gen::<i32>() % i32::abs(x) == 0 {
+                self.leaves.push(*pos + Point::from_floats(x as f64, 1.0))
+            }
+        }
+
+        self.generate_leaves(&(*pos + Point::from_floats(0.0, 1.0)), height - 1, radius - 1);
+    }
+
     pub fn animation_step(&mut self) -> Vec<Point> {
         if self.animation_queue.is_empty() {
-            return Vec::default();
+            return Vec::new();
         }
 
         let mut result: Vec<Point> = Vec::new();
