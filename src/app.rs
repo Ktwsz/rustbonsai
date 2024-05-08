@@ -18,7 +18,7 @@ pub struct App<'a> {
     point: Points<'a>,
     tick_count: u64,
     marker: Marker,
-    bounds: (f64,f64)
+    bounds: (f64, f64)
 }
 
 impl<'a> App<'a> {
@@ -38,6 +38,7 @@ impl<'a> App<'a> {
         let tree = Rect::new(0, 0, frame.size().width, frame.size().height);
         frame.render_widget(self.tree_canvas(), tree);
     }
+
     fn tree_canvas(&self) -> impl Widget + '_ {
         Canvas::default()
             .block(Block::default().borders(Borders::ALL).title("Bonsai"))
@@ -51,13 +52,15 @@ impl<'a> App<'a> {
 
 
     pub fn run() -> io::Result<()> {
-
         let mut terminal = init_terminal()?;
-        let mut app = App::new(terminal.size().unwrap());
-        let bounds = ((terminal.size().unwrap().width - terminal.size().unwrap().y) as u32,(terminal.size().unwrap().height - terminal.size().unwrap().x)as u32);
-        let mut tree = BonsaiTree::new(bounds);
+
+        let terminal_size = terminal.size().unwrap();
+        let mut app = App::new(terminal_size);
+
+        let mut tree = BonsaiTree::new(terminal_size);
         tree.generate();
         tree.normalize();
+
         let mut last_tick = Instant::now();
         let tick_rate = Duration::from_millis(TICK_RATE);
 

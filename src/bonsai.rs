@@ -3,6 +3,7 @@ pub mod utils;
 use rand;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use ratatui::layout::Rect;
 
 use self::utils::Point;
 
@@ -18,7 +19,7 @@ const LEAF_RADIUS: i32 = 6;
 pub struct BonsaiTree {
     nodes: Vec <Point>,
     leaves: Vec <Point>,
-    bounds: (u32, u32),
+    bounds: (u16, u16),
 
     rng: StdRng,
 
@@ -27,11 +28,11 @@ pub struct BonsaiTree {
 }
 
 impl BonsaiTree {
-    pub fn new(bounds: (u32, u32)) -> Self {
+    pub fn new(bounds: Rect) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
             leaves: Vec::new(),
-            bounds,
+            bounds: (bounds.width - bounds.x, bounds.height - bounds.y),
 
             rng: StdRng::seed_from_u64(2137),
 
