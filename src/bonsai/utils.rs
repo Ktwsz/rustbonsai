@@ -12,7 +12,7 @@ impl Point {
         Point {x, y}
     }
 
-    pub fn normalize(&mut self, min_p: &Point, max_p: &Point, bounds: (u32, u32)) {
+    pub fn normalize(&mut self, min_p: &Point, max_p: &Point, bounds: (u16, u16)) {
         let normal_x = max_p.x - min_p.x + 1.0;
         let normal_y = max_p.y - min_p.y + 1.0;
         let normal_p = Point::from_floats(normal_x, normal_y);

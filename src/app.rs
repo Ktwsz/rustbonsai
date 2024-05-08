@@ -9,27 +9,36 @@ use ratatui::{Frame, Terminal};
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Marker, Widget};
 use ratatui::widgets::{Block, Borders};
-use ratatui::widgets::canvas::{Canvas, Points};
-use crate::bonsai::BonsaiTree;
+use ratatui::widgets::canvas::{Canvas, Points, Context};
+use crate::bonsai::{BonsaiTree, PointType};
 
 const TICK_RATE: u64 = 100;
 
 pub struct App<'a> {
-    point: Points<'a>,
-    tick_count: u64,
-    marker: Marker,
-    bounds: (f64,f64)
+    tree_points: Points<'a>,
+    tree_marker: Marker,
+
+    leaf_points: Points<'a>,
+    leaf_marker: Marker,
+
+    bounds: (f64, f64)
 }
 
 impl<'a> App<'a> {
     fn new(terminal_rect: Rect) -> Self {
         Self {
-            point: Points {
+            tree_points: Points {
                 coords: &[],
                 color: Color::Rgb(205,133,63)
             },
-            tick_count: 0,
-            marker: Marker::Dot,
+            tree_marker: Marker::Dot,
+
+            leaf_points: Points {
+                coords: &[],
+                color: Color::Green
+            },
+            leaf_marker: Marker::Dot,
+
             bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64)
         }
     }
@@ -38,12 +47,15 @@ impl<'a> App<'a> {
         let tree = Rect::new(0, 0, frame.size().width, frame.size().height);
         frame.render_widget(self.tree_canvas(), tree);
     }
+
     fn tree_canvas(&self) -> impl Widget + '_ {
         Canvas::default()
             .block(Block::default().borders(Borders::ALL).title("Bonsai"))
-            .marker(self.marker)
+            .marker(self.tree_marker)
             .paint(|ctx| {
-                ctx.draw(&self.point);
+                ctx.draw(&self.tree_points);
+                ctx.layer();
+                ctx.draw(&self.leaf_points);
             })
             .x_bounds([0.0, self.bounds.0])
             .y_bounds([0.0, self.bounds.1])
@@ -54,10 +66,15 @@ impl<'a> App<'a> {
 
         let mut terminal = init_terminal()?;
         let mut app = App::new(terminal.size().unwrap());
-        let bounds = ((terminal.size().unwrap().width - terminal.size().unwrap().y) as u32,(terminal.size().unwrap().height - terminal.size().unwrap().x)as u32);
-        let mut tree = BonsaiTree::new(bounds,seed);
+
+        let terminal_size = terminal.size().unwrap();
+        let mut app = App::new(terminal_size);
+
+        let mut tree = BonsaiTree::new(terminal_size, seed);
+
         tree.generate();
         tree.normalize();
+
         let mut last_tick = Instant::now();
         let tick_rate = Duration::from_millis(TICK_RATE);
 
@@ -87,15 +104,26 @@ impl<'a> App<'a> {
 
     }
     fn on_tick(&mut self, tree: &mut BonsaiTree) {
-        self.tick_count += 1;
-        let changes: Vec<(f64, f64)> = tree.animation_step()
-            .iter()
-            .map(|p| (p.x, p.y))
+        let all_changes = tree.animation_step();
+        let tree_changes: Vec<(f64, f64)> = all_changes.iter()
+            .filter_map(|e| match e {
+                PointType::Tree(p) => Some((p.x, p.y)),
+                _ => None
+            })
             .collect();
 
-        let sliced_changes: &[(f64, f64)] = Box::leak(changes.into_boxed_slice());
+        let sliced_changes: &[(f64, f64)] = Box::leak(tree_changes.into_boxed_slice());
 
-        self.point.coords = Box::leak([self.point.coords, sliced_changes].concat().into_boxed_slice());
+        self.tree_points.coords = Box::leak([self.tree_points.coords, sliced_changes].concat().into_boxed_slice());
+
+        let leaves: Vec<(f64, f64)> = all_changes.iter()
+            .filter_map(|e| match e {
+                PointType::Leaf(p) => Some((p.x, p.y)),
+                _ => None
+            })
+            .collect();
+
+        self.leaf_points.coords = Box::leak([self.leaf_points.coords, Box::leak(leaves.into_boxed_slice())].concat().into_boxed_slice());
     }
 }
 fn init_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
