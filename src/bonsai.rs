@@ -5,7 +5,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use ratatui::layout::Rect;
 
-use self::utils::Point;
+use utils::Point;
 
 const ANIMATION_STEP: i32 = 500;
 
@@ -16,15 +16,26 @@ const BRANCH_COOLDOWN: i32 = 2;
 const LEAF_HEIGHT: i32 = 3;
 const LEAF_RADIUS: i32 = 6;
 
+enum AnimationItem {
+    Tree(isize, usize, f64),
+    Leaf(usize, usize),
+}
+
+pub enum PointType {
+    Tree(Point),
+    Leaf(Point),
+    Pot(Point),
+}
+
 pub struct BonsaiTree {
     nodes: Vec <Point>,
-    leaves: Vec <Point>,
+    leaves: Vec <Vec <Point>>,
     bounds: (u16, u16),
 
     rng: StdRng,
 
     neighbours: Vec <Vec <usize>>,
-    animation_queue: Vec <(isize, usize, f64)>,
+    animation_queue: Vec <AnimationItem>,
 }
 
 impl BonsaiTree {
@@ -34,10 +45,10 @@ impl BonsaiTree {
             leaves: Vec::new(),
             bounds: (bounds.width - bounds.x, bounds.height - bounds.y),
 
-            rng: StdRng::seed_from_u64(2137),
+            rng: StdRng::seed_from_u64(200),
 
             neighbours: Vec::new(),
-            animation_queue: vec![(-1, 0, 0.0)],
+            animation_queue: vec![AnimationItem::Tree(-1, 0, 0.0)],
         }
     }
 
@@ -45,6 +56,7 @@ impl BonsaiTree {
         self.nodes.push(*p);
 
         self.neighbours.push(Vec::new());
+        self.leaves.push(Vec::new());
         if self.nodes.len() > 1 {
             self.neighbours[parent].push(self.nodes.len() - 1);
 
@@ -73,13 +85,12 @@ impl BonsaiTree {
 
     fn generate_tree(&mut self, pos: Point, growth: i32, tier: i32, xdir: i32, mut parent: usize) {
         if tier == 0 {
-            self.generate_leaves(&pos, LEAF_HEIGHT, LEAF_RADIUS);
+            self.generate_leaves(Point::from_floats(0.0, 0.0), LEAF_HEIGHT, LEAF_RADIUS, parent);
             return;
         }
 
         if growth == 0 {
             self.generate_tree(pos, 1 << (tier - 1), tier - 1, xdir, parent);
-
             return;
         }
 
@@ -108,54 +119,77 @@ impl BonsaiTree {
         }
     }
 
-    fn generate_leaves(&mut self, pos: &Point, height: i32, radius: i32) {
+    fn generate_leaves(&mut self, pos: Point, height: i32, radius: i32, parent: usize) {
         if height <= 0 {
             return;
         }
 
         for x in -radius..=radius {
             if x != 0 && self.rng.gen::<i32>() % i32::abs(x) == 0 {
-                self.leaves.push(*pos + Point::from_floats(x as f64, 1.0))
+                self.leaves[parent].push(pos + Point::from_floats(x as f64, 1.0));
             }
         }
 
-        self.generate_leaves(&(*pos + Point::from_floats(0.0, 1.0)), height - 1, radius - 1);
+        self.generate_leaves(pos + Point::from_floats(0.0, 1.0), height - 1, radius - 1, parent);
     }
 
-    pub fn animation_step(&mut self) -> Vec<Point> {
+    pub fn animation_step(&mut self) -> Vec<PointType> {
         if self.animation_queue.is_empty() {
             return Vec::new();
         }
 
-        let mut result: Vec<Point> = Vec::new();
+        let mut result: Vec<PointType> = Vec::new();
 
-        let mut next_frame_queue: Vec <(isize, usize, f64)> = Vec::new();
+        let mut next_frame_queue: Vec <AnimationItem> = Vec::new();
 
-        for (parent, ix, dt) in &self.animation_queue {
-            if *parent == -1 {
-                self.neighbours[*ix].iter().for_each(|&v| next_frame_queue.push((*ix as isize, v, 0.0)));
-                continue;
-            }
+        for item in &self.animation_queue {
+            match item {
+                &AnimationItem::Tree(parent, ix, dt) => {
+                    if parent == -1 {
+                        self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix as isize, v, 0.0)));
+                        continue;
+                    }
 
-            for step in 0..ANIMATION_STEP {
-                let t = dt + step as f64 * 0.002;
+                    for step in 0..ANIMATION_STEP {
+                        let t = dt + step as f64 * 0.002;
 
-                let p = utils::linear_interpolate(&self.nodes[*parent as usize], &self.nodes[*ix], t);
+                        let p = utils::linear_interpolate(&self.nodes[parent as usize], &self.nodes[ix], t);
 
-                result.push(p);
-            }
+                        result.push(PointType::Tree(p));
+                    }
 
-            let next_dt = dt + ANIMATION_STEP as f64 * 0.002;
-            if 1.0 - next_dt <= 0.1 {
-                self.neighbours[*ix].iter().for_each(|&v| next_frame_queue.push((*ix as isize, v, 0.0)));
-            } else {
-                next_frame_queue.push((*parent, *ix, next_dt));
+                    let next_dt = dt + ANIMATION_STEP as f64 * 0.002;
+                    if 1.0 - next_dt <= 0.1 {
+                        self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix as isize, v, 0.0)));
+
+                        if !self.leaves[ix].is_empty() {
+                            next_frame_queue.push(AnimationItem::Leaf(ix, 0));
+                        }
+                    } else {
+                        next_frame_queue.push(AnimationItem::Tree(parent, ix, next_dt));
+                    }
+                }
+
+                &AnimationItem::Leaf(parent, ix) => {
+                    result.push(PointType::Leaf(self.nodes[parent] + self.leaves[parent][ix]));
+                    if ix + 1 < self.leaves[parent].len() {
+                        next_frame_queue.push(AnimationItem::Leaf(parent, ix + 1))
+                    }
+                }
             }
         }
 
         self.animation_queue = next_frame_queue;
 
         result
+    }
+
+    pub fn get_leaves(&self) -> Vec <Point> {
+        self.leaves.iter()
+            .enumerate()
+            .map(|(ix, v)| v.iter().map(move |value| self.nodes[ix] + *value))
+            .flatten()
+            .collect()
     }
 
     pub fn fill_buffer(&self, buffer: &mut Vec<Vec<char>>) {
