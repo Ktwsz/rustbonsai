@@ -73,6 +73,12 @@ impl<'a> App<'a> {
         tree.generate();
         tree.normalize();
 
+        if !live {
+            app.tree_points.coords = Box::leak(tree.get_tree().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
+
+            app.leaf_points.coords = Box::leak(tree.get_leaves().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
+        }
+
         let mut last_tick = Instant::now();
         let tick_rate = Duration::from_millis(TICK_RATE);
 
@@ -87,11 +93,7 @@ impl<'a> App<'a> {
                     }
                 }
             }
-            if last_tick.elapsed() >= tick_rate {
-                if !live{
-                    for _ in 0..100{
-                        app.on_tick(&mut tree);
-                    }}
+            if live && last_tick.elapsed() >= tick_rate {
                 app.on_tick(&mut tree);
                 last_tick = Instant::now();
             }

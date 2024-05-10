@@ -7,7 +7,8 @@ use ratatui::layout::Rect;
 
 use utils::Point;
 
-const ANIMATION_STEP: i32 = 50;
+const ANIMATION_STEP: i32 = 100;
+const DT: f64 = 0.001;
 
 const Y_GROWTH: i32 = 4;
 const MAX_X_GROWTH: i32 = 1;
@@ -163,15 +164,15 @@ impl BonsaiTree {
                     }
 
                     for step in 0..ANIMATION_STEP {
-                        let t = dt + step as f64 * 0.001;
+                        let t = dt + step as f64 * DT;
 
                         let p = utils::linear_interpolate(&self.nodes[parent as usize], &self.nodes[ix], t);
 
                         result.push(PointType::Tree(p));
                     }
 
-                    let next_dt = dt + ANIMATION_STEP as f64 * 0.001;
-                    if 1.0 - next_dt <= 0.0000001 {
+                    let next_dt = dt + ANIMATION_STEP as f64 * DT;
+                    if f64::abs(1.0 - next_dt) <= 0.001 {
                         self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix as isize, v, 0.0)));
 
                         if !self.leaves[ix].is_empty() {
@@ -192,6 +193,19 @@ impl BonsaiTree {
         }
 
         self.animation_queue = next_frame_queue;
+
+        result
+    }
+
+    pub fn get_tree(&self) -> Vec <Point> {
+        let mut result: Vec <Point> = Vec::new();
+
+        for (parent, n) in self.neighbours.iter().enumerate() {
+            for &child in n {
+                (0..1000).map(|dt| utils::linear_interpolate(&self.nodes[parent], &self.nodes[child], dt as f64 / 1000.0))
+                    .for_each(|p| result.push(p));
+            }
+        }
 
         result
     }
