@@ -7,14 +7,14 @@ use ratatui::layout::Rect;
 
 use utils::Point;
 
-const ANIMATION_STEP: i32 = 500;
+const ANIMATION_STEP: i32 = 50;
 
-const Y_GROWTH: i32 = 8;
-const MAX_X_GROWTH: i32 = 3;
-const BRANCHES_TIERS: i32 = 4;
-const BRANCH_COOLDOWN: i32 = 2;
-const LEAF_HEIGHT: i32 = 3;
-const LEAF_RADIUS: i32 = 6;
+const Y_GROWTH: i32 = 4;
+const MAX_X_GROWTH: i32 = 1;
+const BRANCHES_TIERS: i32 = 2;
+const BRANCH_COOLDOWN: i32 = 1;
+const LEAF_HEIGHT: i32 = 2;
+const LEAF_RADIUS: i32 = 1;
 
 enum AnimationItem {
     Tree(isize, usize, f64),
@@ -78,7 +78,7 @@ impl BonsaiTree {
     }
 
     pub fn generate(&mut self) {
-        let xdir = -1 + self.rng.gen_range(0..3);
+        let xdir = if self.rng.gen::<i32>() % 2 == 0 { -1 } else { 1 };
 
         self.generate_tree(Point::from_floats(0.0, 0.0), Y_GROWTH, BRANCHES_TIERS, xdir, 0);
     }
@@ -97,7 +97,8 @@ impl BonsaiTree {
         let mut next_pos = pos;
 
         for _ in 0..MAX_X_GROWTH {
-            next_pos = next_pos + Point::from_floats((xdir * (self.rng.gen::<i32>() % 2)) as f64, 0.2);
+            let grow_y = 0.1 * self.rng.gen_range(1..10) as f64;
+            next_pos = next_pos + Point::from_floats(xdir as f64, grow_y);
 
             parent = self.push(&next_pos, parent);
         }
@@ -112,11 +113,11 @@ impl BonsaiTree {
     }
 
     fn generate_branch(&mut self, pos: Point, tier: i32, xdir: i32, parent: usize) {
-        let next_dir = get_new_direction(xdir, &mut self.rng);
+        let r = if self.rng.gen::<i32>() % 2 == 0 { -1 } else { 1 };
 
-        if xdir > 0 {
-            self.generate_tree(pos, 1 << (tier - 1), tier - 1, next_dir, parent);
-        }
+        let next_dir = xdir * r;
+
+        self.generate_tree(pos, 1 << (tier - 1), tier - 1, next_dir, parent);
     }
 
     fn generate_leaves(&mut self, pos: Point, height: i32, radius: i32, parent: usize) {
@@ -125,12 +126,23 @@ impl BonsaiTree {
         }
 
         for x in -radius..=radius {
-            if x != 0 && self.rng.gen::<i32>() % i32::abs(x) == 0 {
-                self.leaves[parent].push(pos + Point::from_floats(x as f64, 1.0));
-            }
+            self.spawn_leaf_circle(&parent, pos + Point::from_floats(5.0 * x as f64, 1.0));
         }
 
-        self.generate_leaves(pos + Point::from_floats(0.0, 1.0), height - 1, radius - 1, parent);
+        self.generate_leaves(pos + Point::from_floats(0.0, 1.0), height - 1, radius / 2, parent);
+    }
+
+    fn spawn_leaf_circle(&mut self, parent: &usize, position: Point) {
+        for x in -2..=2 {
+            self.leaves[*parent].push(position + Point::from_floats(x as f64, 0.0));
+            self.leaves[*parent].push(position + Point::from_floats(x as f64, 1.0));
+            self.leaves[*parent].push(position + Point::from_floats(x as f64, -1.0));
+        }
+
+        for x in -1..=1 {
+            self.leaves[*parent].push(position + Point::from_floats(x as f64, 2.0));
+            self.leaves[*parent].push(position + Point::from_floats(x as f64, -2.0));
+        }
     }
 
     pub fn animation_step(&mut self) -> Vec<PointType> {
@@ -151,15 +163,15 @@ impl BonsaiTree {
                     }
 
                     for step in 0..ANIMATION_STEP {
-                        let t = dt + step as f64 * 0.002;
+                        let t = dt + step as f64 * 0.001;
 
                         let p = utils::linear_interpolate(&self.nodes[parent as usize], &self.nodes[ix], t);
 
                         result.push(PointType::Tree(p));
                     }
 
-                    let next_dt = dt + ANIMATION_STEP as f64 * 0.002;
-                    if 1.0 - next_dt <= 0.1 {
+                    let next_dt = dt + ANIMATION_STEP as f64 * 0.001;
+                    if 1.0 - next_dt <= 0.0000001 {
                         self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix as isize, v, 0.0)));
 
                         if !self.leaves[ix].is_empty() {
@@ -199,12 +211,3 @@ impl BonsaiTree {
     }
 }
 
-fn get_new_direction(dir: i32, rng: &mut StdRng) -> i32 {
-    let r = rng.gen::<i32>() & 2;
-
-    if dir == 0 {
-        if r == 0 { -1 } else { 1 }
-    } else {
-        dir * -1 * r
-    }
-}

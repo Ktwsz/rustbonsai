@@ -12,7 +12,7 @@ use ratatui::widgets::{Block, Borders};
 use ratatui::widgets::canvas::{Canvas, Points};
 use crate::bonsai::{BonsaiTree, PointType};
 
-const TICK_RATE: u64 = 100;
+const TICK_RATE: u64 = 50;
 
 pub struct App<'a> {
     tree_points: Points<'a>,
