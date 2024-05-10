@@ -9,7 +9,7 @@ use ratatui::{Frame, Terminal};
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Marker, Widget};
 use ratatui::widgets::{Block, Borders};
-use ratatui::widgets::canvas::{Canvas, Points, Context};
+use ratatui::widgets::canvas::{Canvas, Points};
 use crate::bonsai::{BonsaiTree, PointType};
 
 const TICK_RATE: u64 = 100;
@@ -62,10 +62,8 @@ impl<'a> App<'a> {
     }
 
 
-    pub fn run(seed: u64, live: bool) -> io::Result<()> {
-
+    pub fn run(seed: Option<u64>, live: bool) -> io::Result<()> {
         let mut terminal = init_terminal()?;
-        let mut app = App::new(terminal.size().unwrap());
 
         let terminal_size = terminal.size().unwrap();
         let mut app = App::new(terminal_size);

@@ -39,13 +39,13 @@ pub struct BonsaiTree {
 }
 
 impl BonsaiTree {
-    pub fn new(bounds: Rect, seed: u64) -> Self {
+    pub fn new(bounds: Rect, seed: Option <u64>) -> Self {
         BonsaiTree {
             nodes: Vec::new(),
             leaves: Vec::new(),
             bounds: (bounds.width - bounds.x, bounds.height - bounds.y),
 
-            rng: StdRng::seed_from_u64(seed),
+            rng: if let Some(s) = seed { StdRng::seed_from_u64(s) } else { StdRng::from_entropy() },
 
             neighbours: Vec::new(),
             animation_queue: vec![AnimationItem::Tree(-1, 0, 0.0)],
