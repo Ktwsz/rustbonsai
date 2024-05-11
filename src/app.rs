@@ -19,7 +19,6 @@ pub struct App<'a> {
     tree_marker: Marker,
 
     leaf_points: Points<'a>,
-    leaf_marker: Marker,
 
     bounds: (f64, f64)
 }
@@ -37,7 +36,6 @@ impl<'a> App<'a> {
                 coords: &[],
                 color: Color::Green
             },
-            leaf_marker: Marker::Dot,
 
             bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64)
         }
@@ -105,25 +103,18 @@ impl<'a> App<'a> {
     }
     fn on_tick(&mut self, tree: &mut BonsaiTree) {
         let all_changes = tree.animation_step();
-        let tree_changes: Vec<(f64, f64)> = all_changes.iter()
-            .filter_map(|e| match e {
+
+        self.tree_points.coords = process_and_add(self.tree_points.coords, &all_changes,
+            |e| match e {
                 PointType::Tree(p) => Some((p.x, p.y)),
                 _ => None
-            })
-            .collect();
+            });
 
-        let sliced_changes: &[(f64, f64)] = Box::leak(tree_changes.into_boxed_slice());
-
-        self.tree_points.coords = Box::leak([self.tree_points.coords, sliced_changes].concat().into_boxed_slice());
-
-        let leaves: Vec<(f64, f64)> = all_changes.iter()
-            .filter_map(|e| match e {
+        self.leaf_points.coords = process_and_add(self.leaf_points.coords, &all_changes,
+            |e| match e {
                 PointType::Leaf(p) => Some((p.x, p.y)),
                 _ => None
-            })
-            .collect();
-
-        self.leaf_points.coords = Box::leak([self.leaf_points.coords, Box::leak(leaves.into_boxed_slice())].concat().into_boxed_slice());
+            });
     }
 }
 fn init_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
@@ -135,4 +126,13 @@ fn restore_terminal() -> io::Result<()> {
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
     Ok(())
+}
+
+fn process_and_add<'a, 'b, F>(coords: &'a [(f64, f64)], changes: &'b Vec <PointType>, f: F) -> &'a [(f64, f64)] 
+    where F: FnMut(&PointType) -> Option<(f64, f64)> {
+        let new_coords: Vec <(f64, f64)> = changes.iter()
+            .filter_map(f)
+            .collect();
+
+        Box::leak([coords, Box::leak(new_coords.into_boxed_slice())].concat().into_boxed_slice())
 }
