@@ -7,7 +7,7 @@ use app::App;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, long, help = "Specify u64 number to generate seed for simulation if not specified will take from entropy")]
+    #[arg(short, long, help = "Specify u64 number to generate seed for simulation if not specified will be random")]
     seed: Option<u64>,
     #[arg(short, long, default_value_t = false, help= "If included will show live simulation")]
     live: bool,

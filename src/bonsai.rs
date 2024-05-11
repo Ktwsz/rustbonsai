@@ -104,8 +104,6 @@ impl BonsaiTree {
             parent = self.push(&next_pos, parent);
         }
 
-        parent = self.push(&next_pos, parent);
-
         if growth % BRANCH_COOLDOWN == 0 && self.rng.gen::<i32>() % tier == 0 {
             self.generate_branch(next_pos, tier, xdir, parent);
         }
