@@ -74,7 +74,7 @@ impl<'a> App<'a> {
         if !live {
             app.tree_points.coords = Box::leak(tree.get_tree().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
 
-            app.leaf_points.coords = Box::leak(tree.get_leaves().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
+            // app.leaf_circles.coords = Box::leak(tree.get_leaves().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
         }
 
         let mut last_tick = Instant::now();
@@ -105,16 +105,16 @@ impl<'a> App<'a> {
         let all_changes = tree.animation_step();
 
         self.tree_points.coords = process_and_add(self.tree_points.coords, &all_changes,
-            |e| match e {
-                PointType::Tree(p) => Some((p.x, p.y)),
-                _ => None
-            });
+                                                  |e| match e {
+                                                      PointType::Tree(p) => Some((p.x, p.y)),
+                                                      _ => None
+                                                  });
 
         self.leaf_points.coords = process_and_add(self.leaf_points.coords, &all_changes,
-            |e| match e {
-                PointType::Leaf(p) => Some((p.x, p.y)),
-                _ => None
-            });
+                                                  |e| match e {
+                                                      PointType::Leaf(p) => Some((p.x, p.y)),
+                                                      _ => None
+                                                  });
     }
 }
 fn init_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {

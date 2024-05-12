@@ -14,8 +14,6 @@ const Y_GROWTH: i32 = 4;
 const MAX_X_GROWTH: i32 = 1;
 const BRANCHES_TIERS: i32 = 2;
 const BRANCH_COOLDOWN: i32 = 1;
-const LEAF_HEIGHT: i32 = 2;
-const LEAF_RADIUS: i32 = 1;
 
 enum AnimationItem {
     Tree(isize, usize, f64),
@@ -30,7 +28,7 @@ pub enum PointType {
 
 pub struct BonsaiTree {
     nodes: Vec <Point>,
-    leaves: Vec <Vec <Point>>,
+    leaves: Vec <Vec <(Point, i32)>>,
     bounds: (u16, u16),
 
     rng: StdRng,
@@ -86,7 +84,7 @@ impl BonsaiTree {
 
     fn generate_tree(&mut self, pos: Point, growth: i32, tier: i32, xdir: i32, mut parent: usize) {
         if tier == 0 {
-            self.generate_leaves(Point::from_floats(0.0, 0.0), LEAF_HEIGHT, LEAF_RADIUS, parent);
+            self.generate_leaves(Point::from_floats(0.0, 0.0), 3, false, parent);
             return;
         }
 
@@ -119,28 +117,31 @@ impl BonsaiTree {
         self.generate_tree(pos, 1 << (tier - 1), tier - 1, next_dir, parent);
     }
 
-    fn generate_leaves(&mut self, pos: Point, height: i32, radius: i32, parent: usize) {
-        if height <= 0 {
+    fn generate_leaves(&mut self, pos: Point, depth: u8, dir: bool, parent: usize) {
+        if depth == 0 {
             return;
         }
 
-        for x in -radius..=radius {
-            self.spawn_leaf_circle(&parent, pos + Point::from_floats(5.0 * x as f64, 1.0));
-        }
+        let circle_radius = 2 + self.rng.gen::<i32>() % 4;
 
-        self.generate_leaves(pos + Point::from_floats(0.0, 1.0), height - 1, radius / 2, parent);
-    }
+        if depth == 3 {
+            self.leaves[parent].push((pos, circle_radius));
 
-    fn spawn_leaf_circle(&mut self, parent: &usize, position: Point) {
-        for x in -2..=2 {
-            self.leaves[*parent].push(position + Point::from_floats(x as f64, 0.0));
-            self.leaves[*parent].push(position + Point::from_floats(x as f64, 1.0));
-            self.leaves[*parent].push(position + Point::from_floats(x as f64, -1.0));
-        }
+            let dir_y = self.rng.gen::<f64>() % 4.0;
+            self.generate_leaves(pos + Point::from_floats(circle_radius as f64, dir_y), depth - 1, true, parent);
 
-        for x in -1..=1 {
-            self.leaves[*parent].push(position + Point::from_floats(x as f64, 2.0));
-            self.leaves[*parent].push(position + Point::from_floats(x as f64, -2.0));
+            let dir_y = self.rng.gen::<f64>() % 4.0;
+            self.generate_leaves(pos + Point::from_floats(-circle_radius as f64, dir_y), depth - 1, false, parent);
+        } else {
+            let dir_y = self.rng.gen::<f64>() % 4.0;
+
+            let dir_x = if dir { 1.0 } else { -1.0 };
+
+            self.leaves[parent].push((pos + Point::from_floats(dir_x * circle_radius as f64, 0.0), circle_radius));
+
+            let next_pos = pos + Point::from_floats(dir_x * 2.0 * circle_radius as f64, dir_y);
+
+            self.generate_leaves(next_pos, depth - 1, dir, parent);
         }
     }
 
@@ -182,7 +183,17 @@ impl BonsaiTree {
                 }
 
                 &AnimationItem::Leaf(parent, ix) => {
-                    result.push(PointType::Leaf(self.nodes[parent] + self.leaves[parent][ix]));
+                    let (center, radius) = self.leaves[parent][ix];
+
+                    for x in -radius..=radius {
+                        for y in -radius..radius {
+                            if center.y + y as f64 >= 0.0 && x*x + y*y <= radius*radius {
+                                result.push(PointType::Leaf(
+                                        self.nodes[parent] + center + Point::from_floats(x as f64, y as f64)
+                                        ))
+                            }
+                        }
+                    }
                     if ix + 1 < self.leaves[parent].len() {
                         next_frame_queue.push(AnimationItem::Leaf(parent, ix + 1))
                     }
@@ -209,11 +220,29 @@ impl BonsaiTree {
     }
 
     pub fn get_leaves(&self) -> Vec <Point> {
+        Vec::new()
+            /*
         self.leaves.iter()
             .enumerate()
-            .map(|(ix, v)| v.iter().map(move |value| self.nodes[ix] + *value))
+            .map(|(ix, v)| v.iter().map(move |&value| {
+                    let (center, radius) = value;
+                    let result: Vec <Point> = Vec::new();
+
+                    for x in -radius..=radius {
+                        for y in -radius..=radius {
+                            if x*x + y*y <= radius {
+                                result.push(
+                                        self.nodes[ix] + center + Point::from_floats(x as f64, y as f64)
+                                        )
+                            }
+                        }
+                    }
+
+                    result
+            }))
             .flatten()
             .collect()
+            */
     }
 
     pub fn fill_buffer(&self, buffer: &mut Vec<Vec<char>>) {
