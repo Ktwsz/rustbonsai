@@ -12,11 +12,8 @@ impl Point {
         Point {x, y}
     }
 
-    pub fn from_polar(phi: f64, norm: f64) -> Self {
-        Point {
-            x: f64::cos(phi),
-            y: f64::sin(phi),
-        } * norm
+    pub fn norm2(&self) -> f64 {
+        self.x * self.x + self.y * self.y
     }
 
     pub fn normalize(&mut self, min_p: &Point, max_p: &Point, bounds: (u16, u16)) {

@@ -74,7 +74,7 @@ impl<'a> App<'a> {
         if !live {
             app.tree_points.coords = Box::leak(tree.get_tree().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
 
-            // app.leaf_circles.coords = Box::leak(tree.get_leaves().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
+            app.leaf_points.coords = Box::leak(tree.get_leaves().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
         }
 
         let mut last_tick = Instant::now();
