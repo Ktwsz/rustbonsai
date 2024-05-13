@@ -92,8 +92,10 @@ impl BonsaiTree {
         let min_y = self.nodes.iter().map(|p| p.y).fold(f64::MAX, |a, b| a.min(b));
         let max_y = self.nodes.iter().map(|p| p.y).fold(f64::MIN, |a, b| a.max(b));
 
-        let min_p = utils::Point::from_floats(min_x, min_y);
-        let max_p = utils::Point::from_floats(max_x, max_y);
+        let bound_x = f64::max(f64::abs(min_x), f64::abs(max_x));
+
+        let min_p = utils::Point::from_floats(-bound_x, min_y);
+        let max_p = utils::Point::from_floats(bound_x, max_y);
 
         let offset_y = self.bounds.1 - self.tree_bounds.1;
 
@@ -265,12 +267,29 @@ impl BonsaiTree {
     }
 
     pub fn get_pot(&self) -> Vec <(f64, f64)> {
-        std::iter::zip(self.pot.iter(), self.pot.iter().cycle().skip(1))
+        let p1 = self.pot.iter().fold(Point::from_floats(self.bounds.0 as f64 / 2.0, 0.0), |a, &b| if a.x > b.x || a.y > b.y { a } else { b });
+        let p2 = self.pot.iter().fold(Point::from_floats(self.bounds.0 as f64 / 2.0, 0.0), |a, &b| if a.x < b.x || a.y > b.y { a } else { b });
+
+        let squares = [
+            (p1.x, p1.y + 1.0),
+            (p1.x - 1.0, p1.y + 1.0),
+            (p1.x, p1.y + 2.0),
+            (p1.x - 1.0, p1.y + 2.0),
+            (p2.x, p2.y + 1.0),
+            (p2.x + 1.5, p2.y + 1.0),
+            (p2.x, p2.y + 2.0),
+            (p2.x + 1.5, p2.y + 2.0),
+        ];
+
+        let mut result: Vec <(f64, f64)> = std::iter::zip(self.pot.iter(), self.pot.iter().cycle().skip(1))
             .map(|(p1, p2)| (0..1000).map(|dt| utils::linear_interpolate(p1, p2, dt as f64 / 1000.0)))
             .flatten()
             .map(|p| (p.x, p.y))
-            .collect()
+            .collect();
 
+        result.extend(squares);
+
+        result
     }
 }
 
