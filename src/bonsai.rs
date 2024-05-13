@@ -17,6 +17,8 @@ const MAX_X_GROWTH: i32 = 1;
 const BRANCHES_TIERS: i32 = 2;
 const BRANCH_COOLDOWN: i32 = 1;
 
+const POT_HEIGHT: f64 = 1.0 / 7.0;
+
 enum AnimationItem {
     Start,
     Tree(usize, usize, f64),
@@ -46,7 +48,7 @@ pub struct BonsaiTree {
 
 impl BonsaiTree {
     pub fn new(bounds: Rect, seed: Option <u64>) -> Self {
-        let tree_bounds = (bounds.width - bounds.x - 30, f64::floor(0.7 *(bounds.height - bounds.y) as f64) as u16);
+        let tree_bounds = (bounds.width - bounds.x, f64::floor((1.0 - POT_HEIGHT) *(bounds.height - bounds.y) as f64) as u16);
         let bounds = (bounds.width - bounds.x , bounds.height - bounds.y);
 
         let pot = get_pot_points(bounds);
@@ -276,11 +278,14 @@ fn get_pot_points(bounds: (u16, u16)) -> [Point; 4] {
     let bounds_f = (bounds.0 as f64, bounds.1 as f64);
     let center_x = bounds_f.0 * 0.5;
 
+    let up = 1.0 / 5.0 * bounds_f.0;
+    let down = 1.0 / 6.0 * bounds_f.0;
+
     [
-        Point::from_floats(center_x - 0.15 * bounds_f.0, 0.0),
-        Point::from_floats(center_x + 0.15 * bounds_f.0, 0.0),
-        Point::from_floats(center_x + 0.4 * bounds_f.0, 0.3 * bounds_f.1),
-        Point::from_floats(center_x - 0.4 * bounds_f.0, 0.3 * bounds_f.1),
+        Point::from_floats(center_x - down, 0.0),
+        Point::from_floats(center_x + down, 0.0),
+        Point::from_floats(center_x + up, POT_HEIGHT * bounds_f.1),
+        Point::from_floats(center_x - up, POT_HEIGHT * bounds_f.1),
     ]
 }
 
