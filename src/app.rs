@@ -16,9 +16,12 @@ const TICK_RATE: u64 = 50;
 
 pub struct App<'a> {
     tree_points: Points<'a>,
-    tree_marker: Marker,
 
     leaf_points: Points<'a>,
+
+    pot_points: Points<'a>,
+
+    marker: Marker,
 
     bounds: (f64, f64)
 }
@@ -30,12 +33,18 @@ impl<'a> App<'a> {
                 coords: &[],
                 color: Color::Rgb(205,133,63)
             },
-            tree_marker: Marker::Dot,
 
             leaf_points: Points {
                 coords: &[],
                 color: Color::Green
             },
+
+            pot_points: Points {
+                coords: &[],
+                color: Color::Magenta
+            },
+
+            marker: Marker::Dot,
 
             bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64)
         }
@@ -49,8 +58,10 @@ impl<'a> App<'a> {
     fn tree_canvas(&self) -> impl Widget + '_ {
         Canvas::default()
             .block(Block::default().borders(Borders::ALL).title("Bonsai"))
-            .marker(self.tree_marker)
+            .marker(self.marker)
             .paint(|ctx| {
+                ctx.draw(&self.pot_points);
+                ctx.layer();
                 ctx.draw(&self.tree_points);
                 ctx.layer();
                 ctx.draw(&self.leaf_points);
@@ -71,10 +82,12 @@ impl<'a> App<'a> {
         tree.generate();
         tree.normalize();
 
-        if !live {
-            app.tree_points.coords = Box::leak(tree.get_tree().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
+        app.pot_points.coords = Box::leak(tree.get_pot().into_boxed_slice());
 
-            app.leaf_points.coords = Box::leak(tree.get_leaves().iter().map(|p| (p.x, p.y)).collect::<Vec<(f64, f64)>>().into_boxed_slice());
+        if !live {
+            app.tree_points.coords = Box::leak(tree.get_tree().into_boxed_slice());
+
+            app.leaf_points.coords = Box::leak(tree.get_leaves().into_boxed_slice());
         }
 
         let mut last_tick = Instant::now();

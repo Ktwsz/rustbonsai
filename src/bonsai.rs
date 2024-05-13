@@ -18,20 +18,24 @@ const BRANCHES_TIERS: i32 = 2;
 const BRANCH_COOLDOWN: i32 = 1;
 
 enum AnimationItem {
-    Tree(isize, usize, f64),
+    Start,
+    Tree(usize, usize, f64),
     Leaf(usize, usize),
 }
 
 pub enum PointType {
     Tree(Point),
     Leaf(Point),
-    Pot(Point),
 }
 
 pub struct BonsaiTree {
     nodes: Vec <Point>,
     leaves_preprocess: Vec <Vec <(Point, i32)>>,
     leaves: Vec <Vec <Point>>,
+
+    pot: [Point; 4],
+
+    tree_bounds: (u16, u16),
     bounds: (u16, u16),
 
     rng: StdRng,
@@ -42,18 +46,26 @@ pub struct BonsaiTree {
 
 impl BonsaiTree {
     pub fn new(bounds: Rect, seed: Option <u64>) -> Self {
+        let tree_bounds = (bounds.width - bounds.x - 30, f64::floor(0.7 *(bounds.height - bounds.y) as f64) as u16);
+        let bounds = (bounds.width - bounds.x , bounds.height - bounds.y);
+
+        let pot = get_pot_points(bounds);
+
         BonsaiTree {
             nodes: Vec::new(),
 
             leaves_preprocess: Vec::new(),
             leaves: Vec::new(),
 
-            bounds: (bounds.width - bounds.x, bounds.height - bounds.y),
+            pot,
+
+            bounds,
+            tree_bounds,
 
             rng: if let Some(s) = seed { StdRng::seed_from_u64(s) } else { StdRng::from_entropy() },
 
             neighbours: Vec::new(),
-            animation_queue: vec![AnimationItem::Tree(-1, 0, 0.0)],
+            animation_queue: vec![AnimationItem::Start],
         }
     }
 
@@ -80,7 +92,13 @@ impl BonsaiTree {
 
         let min_p = utils::Point::from_floats(min_x, min_y);
         let max_p = utils::Point::from_floats(max_x, max_y);
-        self.nodes.iter_mut().for_each(|v| v.normalize(&min_p, &max_p, self.bounds));
+
+        let offset_y = self.bounds.1 - self.tree_bounds.1;
+
+        self.nodes.iter_mut().for_each(|v| {
+            v.normalize(&min_p, &max_p, self.tree_bounds);
+            *v = *v + Point::from_floats(0.0, offset_y as f64);
+        });
     }
 
     pub fn generate(&mut self) {
@@ -183,12 +201,8 @@ impl BonsaiTree {
 
         for item in &self.animation_queue {
             match item {
+                AnimationItem::Start => self.neighbours[0].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(0, v, 0.0))),
                 &AnimationItem::Tree(parent, ix, dt) => {
-                    if parent == -1 {
-                        self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix as isize, v, 0.0)));
-                        continue;
-                    }
-
                     for step in 0..ANIMATION_STEP {
                         let t = dt + step as f64 * DT;
 
@@ -199,7 +213,7 @@ impl BonsaiTree {
 
                     let next_dt = dt + ANIMATION_STEP as f64 * DT;
                     if f64::abs(1.0 - next_dt) <= 0.001 {
-                        self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix as isize, v, 0.0)));
+                        self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix, v, 0.0)));
 
                         if !self.leaves[ix].is_empty() {
                             next_frame_queue.push(AnimationItem::Leaf(ix, 0));
@@ -226,25 +240,47 @@ impl BonsaiTree {
         result
     }
 
-    pub fn get_tree(&self) -> Vec <Point> {
-        let mut result: Vec <Point> = Vec::new();
+    pub fn get_tree(&self) -> Vec <(f64, f64)> {
+        let mut result: Vec <(f64, f64)> = Vec::new();
 
         for (parent, n) in self.neighbours.iter().enumerate() {
             for &child in n {
                 (0..1000).map(|dt| utils::linear_interpolate(&self.nodes[parent], &self.nodes[child], dt as f64 / 1000.0))
-                    .for_each(|p| result.push(p));
+                    .for_each(|p| result.push((p.x, p.y)));
             }
         }
 
         result
     }
 
-    pub fn get_leaves(&self) -> Vec <Point> {
+    pub fn get_leaves(&self) -> Vec <(f64, f64)> {
         self.leaves.iter()
             .enumerate()
             .map(|(ix, v)| v.iter().map(move |&p| self.nodes[ix] + p))
             .flatten()
+            .map(|p| (p.x, p.y))
             .collect()
     }
+
+    pub fn get_pot(&self) -> Vec <(f64, f64)> {
+        std::iter::zip(self.pot.iter(), self.pot.iter().cycle().skip(1))
+            .map(|(p1, p2)| (0..1000).map(|dt| utils::linear_interpolate(p1, p2, dt as f64 / 1000.0)))
+            .flatten()
+            .map(|p| (p.x, p.y))
+            .collect()
+
+    }
+}
+
+fn get_pot_points(bounds: (u16, u16)) -> [Point; 4] {
+    let bounds_f = (bounds.0 as f64, bounds.1 as f64);
+    let center_x = bounds_f.0 * 0.5;
+
+    [
+        Point::from_floats(center_x - 0.15 * bounds_f.0, 0.0),
+        Point::from_floats(center_x + 0.15 * bounds_f.0, 0.0),
+        Point::from_floats(center_x + 0.4 * bounds_f.0, 0.3 * bounds_f.1),
+        Point::from_floats(center_x - 0.4 * bounds_f.0, 0.3 * bounds_f.1),
+    ]
 }
 
