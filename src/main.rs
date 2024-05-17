@@ -9,13 +9,15 @@ use app::App;
 struct Args {
     #[arg(short, long, help = "Specify u64 number to generate seed for simulation if not specified will be random")]
     seed: Option<u64>,
-    #[arg(short, long, default_value_t = false, help= "If included will show live simulation")]
+    #[arg(short, long, default_value_t = false, help = "If included will show live simulation")]
     live: bool,
+    #[arg(short, long, default_value_t = false, help = "Change color scheme to cherry blossom")]
+    cherry: bool,
 }
 
 fn main() ->io::Result<()> {
     let args = Args::parse();
-    App::run(args.seed,args.live)
+    App::run(args.seed,args.live, args.cherry)
 }
 
 

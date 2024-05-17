@@ -29,26 +29,26 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    fn new(terminal_rect: Rect) -> Self {
+    fn new(terminal_rect: Rect, cherry: bool) -> Self {
         Self {
             tree_points: Points {
                 coords: &[],
-                color: Color::Rgb(205,133,63)
+                color: if cherry { Color::Rgb(205,133,63) } else { Color::Rgb(205,133,63) }
             },
 
             leaf_points: Points {
                 coords: &[],
-                color: Color::Green
+                color: if cherry { Color::Green } else { Color::Green }
             },
 
             pot_points: Points {
                 coords: &[],
-                color: Color::Magenta
+                color: if cherry { Color::Magenta } else { Color::Magenta }
             },
 
             particles: Points {
                 coords: &[],
-                color: Color::Red
+                color: if cherry { Color::Red } else { Color::Red }
             },
 
             marker: Marker::Dot,
@@ -80,11 +80,11 @@ impl<'a> App<'a> {
     }
 
 
-    pub fn run(seed: Option<u64>, live: bool) -> io::Result<()> {
+    pub fn run(seed: Option<u64>, live: bool, cherry: bool) -> io::Result<()> {
         let mut terminal = init_terminal()?;
 
         let terminal_size = terminal.size().unwrap();
-        let mut app = App::new(terminal_size);
+        let mut app = App::new(terminal_size, cherry);
 
         let mut tree = BonsaiTree::new(terminal_size, seed);
 
