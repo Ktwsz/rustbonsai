@@ -21,6 +21,8 @@ pub struct App<'a> {
 
     pot_points: Points<'a>,
 
+    particles: Points <'a>,
+
     marker: Marker,
 
     bounds: (f64, f64)
@@ -44,6 +46,11 @@ impl<'a> App<'a> {
                 color: Color::Magenta
             },
 
+            particles: Points {
+                coords: &[],
+                color: Color::Red
+            },
+
             marker: Marker::Dot,
 
             bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64)
@@ -65,6 +72,8 @@ impl<'a> App<'a> {
                 ctx.draw(&self.tree_points);
                 ctx.layer();
                 ctx.draw(&self.leaf_points);
+                ctx.layer();
+                ctx.draw(&self.particles);
             })
             .x_bounds([0.0, self.bounds.0])
             .y_bounds([0.0, self.bounds.1])
@@ -104,8 +113,8 @@ impl<'a> App<'a> {
                     }
                 }
             }
-            if live && last_tick.elapsed() >= tick_rate {
-                app.on_tick(&mut tree);
+            if last_tick.elapsed() >= tick_rate {
+                app.on_tick(&mut tree, live);
                 last_tick = Instant::now();
             }
         }
@@ -114,20 +123,16 @@ impl<'a> App<'a> {
         restore_terminal()
 
     }
-    fn on_tick(&mut self, tree: &mut BonsaiTree) {
+    fn on_tick(&mut self, tree: &mut BonsaiTree, live: bool) {
         let all_changes = tree.animation_step();
 
-        self.tree_points.coords = process_and_add(self.tree_points.coords, &all_changes,
-                                                  |e| match e {
-                                                      PointType::Tree(p) => Some((p.x, p.y)),
-                                                      _ => None
-                                                  });
+        if live {
+            self.tree_points.coords = process(self.tree_points.coords, &all_changes, PointType::filter_tree);
 
-        self.leaf_points.coords = process_and_add(self.leaf_points.coords, &all_changes,
-                                                  |e| match e {
-                                                      PointType::Leaf(p) => Some((p.x, p.y)),
-                                                      _ => None
-                                                  });
+            self.leaf_points.coords = process(self.leaf_points.coords, &all_changes, PointType::filter_leaf);
+        }
+
+        self.particles.coords = Box::leak(filter(&all_changes, PointType::filter_particles).into_boxed_slice());
     }
 }
 fn init_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
@@ -141,11 +146,16 @@ fn restore_terminal() -> io::Result<()> {
     Ok(())
 }
 
-fn process_and_add<'a, 'b, F>(coords: &'a [(f64, f64)], changes: &'b Vec <PointType>, f: F) -> &'a [(f64, f64)] 
+fn process<'a, 'b, F>(coords: &'a [(f64, f64)], changes: &'b Vec <PointType>, f: F) -> &'a [(f64, f64)] 
     where F: FnMut(&PointType) -> Option<(f64, f64)> {
-        let new_coords: Vec <(f64, f64)> = changes.iter()
-            .filter_map(f)
-            .collect();
+        let new_coords = filter(changes, f);
 
         Box::leak([coords, Box::leak(new_coords.into_boxed_slice())].concat().into_boxed_slice())
+}
+
+fn filter<F>(changes: &Vec <PointType>, f: F) -> Vec <(f64, f64)> 
+    where F: FnMut(&PointType) -> Option<(f64, f64)> {
+        changes.iter()
+            .filter_map(f)
+            .collect()
 }

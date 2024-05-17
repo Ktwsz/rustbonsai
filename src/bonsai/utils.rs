@@ -12,6 +12,13 @@ impl Point {
         Point {x, y}
     }
 
+    pub fn from_phi(phi: f64) -> Self {
+        Point {
+            x: f64::cos(phi),
+            y: f64::sin(phi),
+        }
+    }
+
     pub fn norm2(&self) -> f64 {
         self.x * self.x + self.y * self.y
     }

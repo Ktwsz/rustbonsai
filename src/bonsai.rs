@@ -23,17 +23,46 @@ enum AnimationItem {
     Start,
     Tree(usize, usize, f64),
     Leaf(usize, usize),
+    Particle(Point),
 }
 
 pub enum PointType {
     Tree(Point),
     Leaf(Point),
+    Particle(Point),
+}
+
+impl PointType {
+    pub fn filter_tree(val: &PointType) -> Option<(f64, f64)> {
+        match val {
+            PointType::Tree(p) => Some((p.x, p.y)),
+            _ => None
+        }
+    }
+
+    pub fn filter_leaf(val: &PointType) -> Option<(f64, f64)> {
+        match val {
+            PointType::Leaf(p) => Some((p.x, p.y)),
+            _ => None
+        }
+    }
+    
+    pub fn filter_particles(val: &PointType) -> Option<(f64, f64)> {
+        match val {
+            PointType::Particle(p) => Some((p.x, p.y)),
+            _ => None
+        }
+    }
 }
 
 pub struct BonsaiTree {
     nodes: Vec <Point>,
     leaves_preprocess: Vec <Vec <(Point, i32)>>,
     leaves: Vec <Vec <Point>>,
+
+    leaves_flat: Vec <Point>,
+
+    particle_direction: Point,
 
     pot: [Point; 4],
 
@@ -53,18 +82,25 @@ impl BonsaiTree {
 
         let pot = get_pot_points(bounds);
 
+        let mut rng = if let Some(s) = seed { StdRng::seed_from_u64(s) } else { StdRng::from_entropy() };
+
+        let particle_direction = Point::from_phi(rng.gen::<f64>() % 3.14) * -1.0;
+
         BonsaiTree {
             nodes: Vec::new(),
 
             leaves_preprocess: Vec::new(),
             leaves: Vec::new(),
+            leaves_flat: Vec::new(),
+
+            particle_direction,
 
             pot,
 
             bounds,
             tree_bounds,
 
-            rng: if let Some(s) = seed { StdRng::seed_from_u64(s) } else { StdRng::from_entropy() },
+            rng,
 
             neighbours: Vec::new(),
             animation_queue: vec![AnimationItem::Start],
@@ -103,6 +139,8 @@ impl BonsaiTree {
             v.normalize(&min_p, &max_p, self.tree_bounds);
             *v = *v + Point::from_floats(0.0, offset_y as f64);
         });
+
+        self.get_leaves_flat();
     }
 
     pub fn generate(&mut self) {
@@ -191,17 +229,21 @@ impl BonsaiTree {
             if a.norm2() < b.norm2() { Ordering::Less }
             else if a.norm2() == b.norm2() { Ordering::Equal }
             else { Ordering::Greater }
-        )
+        );
+    }
+
+    fn get_leaves_flat(&mut self) {
+        for (ix, v) in self.leaves.iter().enumerate() {
+            self.leaves_flat.extend(v.iter().map(|&p| self.nodes[ix] + p));
+        }
     }
 
     pub fn animation_step(&mut self) -> Vec<PointType> {
-        if self.animation_queue.is_empty() {
-            return Vec::new();
-        }
-
         let mut result: Vec<PointType> = Vec::new();
 
         let mut next_frame_queue: Vec <AnimationItem> = Vec::new();
+
+        next_frame_queue.push(AnimationItem::Particle(self.new_particle()));
 
         for item in &self.animation_queue {
             match item {
@@ -236,12 +278,27 @@ impl BonsaiTree {
                         next_frame_queue.push(AnimationItem::Leaf(parent, ix + 10))
                     }
                 }
+
+                &AnimationItem::Particle(mut p) => {
+                    p = p + self.particle_direction;
+                    p = p + Point::from_floats(-1.0 + (self.rng.gen::<i32>() % 3) as f64, 0.0);
+
+                    result.push(PointType::Particle(p));
+                    if p.y > 0.0 {
+                        next_frame_queue.push(AnimationItem::Particle(p));
+                    }
+                }
             }
         }
 
         self.animation_queue = next_frame_queue;
 
         result
+    }
+
+    fn new_particle(&mut self) -> Point {
+        let ix = self.rng.gen::<usize>() % self.leaves_flat.len();
+        self.leaves_flat[ix]
     }
 
     pub fn get_tree(&self) -> Vec <(f64, f64)> {
@@ -258,10 +315,7 @@ impl BonsaiTree {
     }
 
     pub fn get_leaves(&self) -> Vec <(f64, f64)> {
-        self.leaves.iter()
-            .enumerate()
-            .map(|(ix, v)| v.iter().map(move |&p| self.nodes[ix] + p))
-            .flatten()
+        self.leaves_flat.iter()
             .map(|p| (p.x, p.y))
             .collect()
     }
