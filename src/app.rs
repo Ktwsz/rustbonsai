@@ -29,26 +29,44 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    fn new(terminal_rect: Rect, cherry: bool) -> Self {
+    fn new(terminal_rect: Rect, theme: u16) -> Self {
         Self {
             tree_points: Points {
                 coords: &[],
-                color: if cherry { Color::Rgb(205,133,63) } else { Color::Rgb(205,133,63) }
+                color: match theme {
+                    1 => Color::Rgb(205,133,63),
+                    2 => Color::Rgb(144, 128, 90),
+                    3 => Color::Rgb(224, 171, 61),
+                    4 => Color::Rgb(80, 80, 200),
+                    _ => Color::Rgb(205,133,63),
+                }
             },
 
             leaf_points: Points {
                 coords: &[],
-                color: if cherry { Color::Green } else { Color::Green }
+                color: match theme {
+                    1 => Color::Green,
+                    2 => Color::Rgb(220, 201, 201),
+                    3 => Color::Rgb(236, 65, 32),
+                    4 => Color::Rgb(173, 216, 230),
+                    _ => Color::Green
+                }
             },
 
             pot_points: Points {
                 coords: &[],
-                color: if cherry { Color::Magenta } else { Color::Magenta }
+                color: Color::Magenta
             },
 
             particles: Points {
                 coords: &[],
-                color: if cherry { Color::Red } else { Color::Red }
+                color: match theme {
+                    1 => Color::LightGreen,
+                    2 => Color::Rgb(239, 169, 228),
+                    3 => Color::Rgb(200, 7, 6),
+                    4 => Color::Rgb(70, 130, 180),
+                    _ => Color::LightGreen,
+                }
             },
 
             marker: Marker::Dot,
@@ -80,11 +98,11 @@ impl<'a> App<'a> {
     }
 
 
-    pub fn run(seed: Option<u64>, live: bool, cherry: bool) -> io::Result<()> {
+    pub fn run(seed: Option<u64>, live: bool, theme: u16) -> io::Result<()> {
         let mut terminal = init_terminal()?;
 
         let terminal_size = terminal.size().unwrap();
-        let mut app = App::new(terminal_size, cherry);
+        let mut app = App::new(terminal_size, theme);
 
         let mut tree = BonsaiTree::new(terminal_size, seed);
 
