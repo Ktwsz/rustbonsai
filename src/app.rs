@@ -104,7 +104,7 @@ impl<'a> App<'a> {
         let terminal_size = terminal.size().unwrap();
         let mut app = App::new(terminal_size, theme);
 
-        let mut tree = BonsaiTree::new(terminal_size, seed);
+        let mut tree = BonsaiTree::new(terminal_size, seed, live);
 
         tree.generate();
         tree.normalize();

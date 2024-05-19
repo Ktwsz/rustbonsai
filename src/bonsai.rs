@@ -73,10 +73,11 @@ pub struct BonsaiTree {
 
     neighbours: Vec <Vec <usize>>,
     animation_queue: Vec <AnimationItem>,
+    animation_ctr: Option<usize>,
 }
 
 impl BonsaiTree {
-    pub fn new(bounds: Rect, seed: Option <u64>) -> Self {
+    pub fn new(bounds: Rect, seed: Option <u64>, live: bool) -> Self {
         let tree_bounds = (bounds.width - bounds.x, f64::floor((1.0 - POT_HEIGHT) *(bounds.height - bounds.y) as f64) as u16);
         let bounds = (bounds.width - bounds.x , bounds.height - bounds.y);
 
@@ -104,6 +105,7 @@ impl BonsaiTree {
 
             neighbours: Vec::new(),
             animation_queue: vec![AnimationItem::Start],
+            animation_ctr: if live { Some(1) } else { None },
         }
     }
 
@@ -243,7 +245,14 @@ impl BonsaiTree {
 
         let mut next_frame_queue: Vec <AnimationItem> = Vec::new();
 
-        next_frame_queue.push(AnimationItem::Particle(self.new_particle()));
+        let animation_size = self.nodes.len() + self.leaves_flat.len();
+        match self.animation_ctr {
+            Some(x) if x == animation_size =>
+                next_frame_queue.push(AnimationItem::Particle(self.new_particle())),
+            None =>
+                next_frame_queue.push(AnimationItem::Particle(self.new_particle())),
+            _ => ()
+        }
 
         for item in &self.animation_queue {
             match item {
@@ -259,6 +268,8 @@ impl BonsaiTree {
 
                     let next_dt = dt + ANIMATION_STEP as f64 * DT;
                     if f64::abs(1.0 - next_dt) <= 0.001 {
+                        self.animation_ctr = self.animation_ctr.map(|v| v + 1);
+
                         self.neighbours[ix].iter().for_each(|&v| next_frame_queue.push(AnimationItem::Tree(ix, v, 0.0)));
 
                         if !self.leaves[ix].is_empty() {
@@ -270,12 +281,13 @@ impl BonsaiTree {
                 }
 
                 &AnimationItem::Leaf(parent, ix) => {
-
                     let range_end = usize::min(ix + 10, self.leaves[parent].len());
                     result.extend(self.leaves[parent][ix..range_end].iter().map(|&p| PointType::Leaf(self.nodes[parent] + p)));
 
                     if ix + 10 < self.leaves[parent].len() {
                         next_frame_queue.push(AnimationItem::Leaf(parent, ix + 10))
+                    } else {
+                        self.animation_ctr = self.animation_ctr.map(|v| v + self.leaves[parent].len());
                     }
                 }
 
