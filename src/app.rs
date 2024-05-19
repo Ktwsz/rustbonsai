@@ -25,11 +25,13 @@ pub struct App<'a> {
 
     marker: Marker,
 
-    bounds: (f64, f64)
+    bounds: (f64, f64),
+
+    show_particles: bool,
 }
 
 impl<'a> App<'a> {
-    fn new(terminal_rect: Rect, theme: u16) -> Self {
+    fn new(terminal_rect: Rect, theme: u16, show_particles: bool) -> Self {
         Self {
             tree_points: Points {
                 coords: &[],
@@ -71,7 +73,9 @@ impl<'a> App<'a> {
 
             marker: Marker::Dot,
 
-            bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64)
+            bounds: ((terminal_rect.width-terminal_rect.x) as f64,(terminal_rect.height-terminal_rect.y)as f64),
+
+            show_particles,
         }
     }
 
@@ -98,11 +102,11 @@ impl<'a> App<'a> {
     }
 
 
-    pub fn run(seed: Option<u64>, live: bool, theme: u16) -> io::Result<()> {
+    pub fn run(seed: Option<u64>, live: bool, theme: u16, particles: bool) -> io::Result<()> {
         let mut terminal = init_terminal()?;
 
         let terminal_size = terminal.size().unwrap();
-        let mut app = App::new(terminal_size, theme);
+        let mut app = App::new(terminal_size, theme, particles);
 
         let mut tree = BonsaiTree::new(terminal_size, seed, live);
 
@@ -150,7 +154,9 @@ impl<'a> App<'a> {
             self.leaf_points.coords = process(self.leaf_points.coords, &all_changes, PointType::filter_leaf);
         }
 
-        self.particles.coords = Box::leak(filter(&all_changes, PointType::filter_particles).into_boxed_slice());
+        if self.show_particles {
+            self.particles.coords = Box::leak(filter(&all_changes, PointType::filter_particles).into_boxed_slice());
+        }
     }
 }
 fn init_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
