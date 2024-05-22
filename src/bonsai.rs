@@ -248,7 +248,7 @@ impl BonsaiTree {
         let animation_size = self.nodes.len() + self.leaves_flat.len();
         match self.animation_ctr {
             Some(x) if x != animation_size => (),
-            _ => next_frame_queue.push(AnimationItem::Particle(self.new_particle())),
+            _ => next_frame_queue.push(self.new_particle()),
         }
 
         for item in &self.animation_queue {
@@ -305,9 +305,9 @@ impl BonsaiTree {
         result
     }
 
-    fn new_particle(&mut self) -> Point {
+    fn new_particle(&mut self) -> AnimationItem {
         let ix = self.rng.gen::<usize>() % self.leaves_flat.len();
-        self.leaves_flat[ix]
+        AnimationItem::Particle(self.leaves_flat[ix])
     }
 
     pub fn get_tree(&self) -> Vec <(f64, f64)> {
