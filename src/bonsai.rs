@@ -247,11 +247,8 @@ impl BonsaiTree {
 
         let animation_size = self.nodes.len() + self.leaves_flat.len();
         match self.animation_ctr {
-            Some(x) if x == animation_size =>
-                next_frame_queue.push(AnimationItem::Particle(self.new_particle())),
-            None =>
-                next_frame_queue.push(AnimationItem::Particle(self.new_particle())),
-            _ => ()
+            Some(x) if x != animation_size => (),
+            _ => next_frame_queue.push(AnimationItem::Particle(self.new_particle())),
         }
 
         for item in &self.animation_queue {
