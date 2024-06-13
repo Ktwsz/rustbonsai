@@ -1,5 +1,4 @@
 use std::ops::{Add, Sub, Mul, Div};
-use std::cmp::{PartialEq, Eq};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
@@ -86,12 +85,3 @@ impl Div for Point {
         }
     }
 }
-
-impl PartialEq for Point {
-    fn eq(&self, other: &Self) -> bool {
-        f64::abs(self.x - other.x) <= 0.000001 &&
-            f64::abs(self.y - other.y) <= 0.000001  
-    }
-}
-
-impl Eq for Point {}
